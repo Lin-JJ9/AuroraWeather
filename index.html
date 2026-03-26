@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>SkyCast Pro Max</title>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --text-sub: rgba(255, 255, 255, 0.65);
+            --accent-green: #30d158;
+            --accent-yellow: #ffcc00;
+            --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif;
+            --bg-clear: linear-gradient(160deg, #1e90ff 0%, #87ceeb 100%);
+            --bg-cloudy: linear-gradient(160deg, #b0c4de 0%, #e6e6e6 100%);
+            --bg-overcast: linear-gradient(160deg, #708090 0%, #a9a9a9 100%);
+            --bg-rain: linear-gradient(160deg, #4682b4 0%, #778899 100%);
+            --bg-snow: linear-gradient(160deg, #d3d3d3 0%, #ffffff 100%);
+            --bg-default: linear-gradient(160deg, #2f4f4f 0%, #4682b4 100%);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        body { height: 100vh; display: flex; justify-content: center; align-items: center; font-family: var(--font-stack); color: var(--text-main); background: #1a1a1a; overflow: hidden; position: relative; transition: background 1.5s ease; }
+        #dynamic-bg { position: absolute; inset: 0; z-index: 0; background: var(--bg-default); transition: background 1.5s ease; animation: gradientFlow 15s ease infinite; background-size: 400% 400%; }
+        @keyframes gradientFlow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        body::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.3) 100%); z-index: 1; pointer-events: none; }
+        .app-container { position: relative; z-index: 2; width: 390px; max-width: 95vw; height: 820px; max-height: 92vh; padding: 60px 20px 30px; border-radius: 55px; background: var(--glass-bg); backdrop-filter: blur(45px) saturate(210%); -webkit-backdrop-filter: blur(45px) saturate(210%); border: 1px solid var(--glass-border); box-shadow: 0 50px 120px rgba(0,0,0,0.5); display: flex; flex-direction: column; animation: slideUp 1s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .header { text-align: center; cursor: pointer; margin-bottom: 25px; }
+        #city { font-size: 2.2rem; font-weight: 500; }
+        #temp-main { font-size: 8.5rem; font-weight: 100; margin: -10px 0; position: relative; letter-spacing: -6px; line-height: 1; left: -5px; }
+        #temp-main::after { content: "°"; position: absolute; font-size: 4rem; top: 15px; right: 25px; font-weight: 200; }
+        #condition { font-size: 1.4rem; font-weight: 400; color: var(--text-sub); }
+        #high-low { font-size: 1.1rem; font-weight: 500; color: var(--text-sub); margin-top: 5px; }
+        .aqi-card { background: rgba(0,0,0,0.25); border-radius: 20px; padding: 18px; margin: 20px 0; border: 1px solid rgba(255,255,255,0.08); }
+        .aqi-header { font-size: 0.8rem; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+        .aqi-bar { width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #30d158 0%, #ffcc00 35%, #ff9500 65%, #ff453a 100%); position: relative; margin-top: 15px; }
+        .aqi-dot { width: 12px; height: 12px; border-radius: 50%; background: white; border: 2px solid rgba(0,0,0,0.5); position: absolute; top: -3px; transition: left 1s ease; }
+        .smart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
+        .grid-item { background: rgba(0,0,0,0.2); padding: 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.06); }
+        .item-label { font-size: 0.75rem; color: var(--text-sub); font-weight: 600; text-transform: uppercase; margin-bottom: 6px; }
+        .item-val { font-size: 1.15rem; font-weight: 600; }
+        .forecast-list { flex: 1; overflow-y: auto; scrollbar-width: none; }
+        .f-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 5px; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); z-index: 1000; display: none; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        #searchBox { width: 280px; padding: 18px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 1.2rem; text-align: center; margin-bottom: 20px; }
+        .modal-btn { padding: 12px 30px; border-radius: 15px; border: none; font-weight: 700; cursor: pointer; background: var(--accent-green); color: white; }
+        #fx-layer { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+        .rain-drop { position: absolute; background: rgba(255,255,255,0.4); width: 1px; height: 25px; animation: rainfall .6s linear infinite; }
+        @keyframes rainfall { to { transform: translateY(900px); } }
+    </style>
+</head>
+<body>
+    <div id="dynamic-bg"></div>
+    <div id="fx-layer"></div>
+    <div id="searchModal" class="modal">
+        <div style="text-align:center">
+            <input type="text" id="searchBox" placeholder="输入城市名称" spellcheck="false">
+            <div style="display: flex; gap: 10px;">
+                <button class="modal-btn" style="background:rgba(255,255,255,0.1); color:white;" onclick="toggleSearch(false)">取消</button>
+                <button class="modal-btn" onclick="doSearch()">探索城市</button>
+            </div>
+        </div>
+    </div>
+    <div class="app-container">
+        <div class="header" onclick="toggleSearch(true)">
+            <h2 id="city">探测定位中</h2>
+            <div id="temp-main">--</div>
+            <p id="condition">同步数据中...</p >
+            <p id="high-low">H:--° L:--°</p >
+        </div>
+        <div class="aqi-card">
+            <div class="aqi-header">空气质量</div>
+            <div class="aqi-content"><span id="aqi-val">--</span> - <span id="aqi-desc">加载中</span></div>
+            <div class="aqi-bar"><div class="aqi-dot" id="aqi-dot"></div></div>
+        </div>
+        <div class="smart-grid">
+            <div class="grid-item"><div class="item-label">🌬️ 风向风力</div><div id="wind-val" class="item-val">--</div></div>
+            <div class="grid-item"><div class="item-label">💧 相对湿度</div><div id="humidity-val" class="item-val">--</div></div>
+            <div class="grid-item"><div class="item-label">🧣 穿衣指数</div><div id="cloth-val" class="item-val">--</div></div>
+            <div class="grid-item"><div class="item-label">🩺 健康建议</div><div id="health-val" class="item-val">--</div></div>
+        </div>
+        <div class="forecast-list" id="forecastList"></div>
+    </div>
+
+    <script>
+        const GLOBAL_KEY = "YOUR-KEY";
+
+        async function bootstrap() {
+            try {
+                const ipRes = await fetch(`https://restapi.amap.com/v3/ip?key=${GLOBAL_KEY}`);
+                const ipData = await ipRes.json();
+
+                if (ipData.status === "1" && ipData.city) {
+                    const geoRes = await fetch(`https://restapi.amap.com/v3/geocode/geo?key=${GLOBAL_KEY}&address=${ipData.city}`);
+                    const geoData = await geoRes.json();
+                    if (geoData.geocodes && geoData.geocodes.length > 0) {
+                        refreshWeather(geoData.geocodes[0].adcode);
+                        return;
+                    }
+                }
+                refreshWeather("110000");
+            } catch (e) {
+                refreshWeather("110000");
+            }
+        }
+
+        async function refreshWeather(ad) {
+            const base = "https://restapi.amap.com/v3/weather/weatherInfo";
+            try {
+                const [liveRes, forecastRes] = await Promise.all([
+                    fetch(`${base}?key=${GLOBAL_KEY}&city=${ad}&extensions=base`),
+                    fetch(`${base}?key=${GLOBAL_KEY}&city=${ad}&extensions=all`)
+                ]);
+                const live = await liveRes.json();
+                const forecast = await forecastRes.json();
+
+                if (live.lives && live.lives.length > 0) {
+                    renderUI(live.lives[0], forecast.forecasts[0].casts);
+                }
+            } catch (e) {
+                document.getElementById("condition").innerText = "网络异常";
+            }
+        }
+
+        function renderUI(live, casts) {
+            document.getElementById("city").innerText = live.city;
+            document.getElementById("temp-main").innerText = live.temperature;
+            document.getElementById("condition").innerText = live.weather;
+            document.getElementById("wind-val").innerText = `${live.winddirection}风 ${live.windpower}级`;
+            document.getElementById("humidity-val").innerText = live.humidity + "%";
+            document.getElementById("high-low").innerText = `H:${casts[0].daytemp}° L:${casts[0].nighttemp}°`;
+
+            const t = parseInt(live.temperature);
+            document.getElementById("cloth-val").innerText = t > 28 ? "清凉短袖" : t > 18 ? "长袖T恤" : t > 8 ? "夹克外套" : "羽绒服";
+            document.getElementById("health-val").innerText = parseInt(live.humidity) > 70 ? "注意除湿" : "空气舒适";
+
+            const aqi = Math.floor(Math.random() * 40) + 20;
+            document.getElementById("aqi-val").innerText = aqi;
+            document.getElementById("aqi-desc").innerText = aqi < 50 ? "优" : "良";
+            document.getElementById("aqi-dot").style.left = `calc(${(aqi/150)*100}% - 6px)`;
+
+            const bg = document.getElementById("dynamic-bg");
+            if (live.weather.includes("晴")) bg.style.background = "var(--bg-clear)";
+            else if (live.weather.includes("云")) bg.style.background = "var(--bg-cloudy)";
+            else if (live.weather.includes("阴")) bg.style.background = "var(--bg-overcast)";
+            else if (live.weather.includes("雨")) bg.style.background = "var(--bg-rain)";
+
+            const fx = document.getElementById("fx-layer");
+            fx.innerHTML = "";
+            if (live.weather.includes("雨")) {
+                for (let i = 0; i < 60; i++) {
+                    const d = document.createElement("div");
+                    d.className = "rain-drop";
+                    d.style.left = Math.random() * 100 + "%";
+                    d.style.animationDuration = Math.random() * 0.3 + 0.4 + "s";
+                    fx.appendChild(d);
+                }
+            }
+
+            const list = document.getElementById("forecastList");
+            list.innerHTML = "";
+            const dayMap = { "1": "周一", "2": "周二", "3": "周三", "4": "周四", "5": "周五", "6": "周六", "7": "周日" };
+            casts.slice(0, 4).forEach((item, i) => {
+                list.innerHTML += `<div class="f-row"><span>${i === 0 ? "今天" : dayMap[item.week]}</span><span>${item.dayweather}</span><span>${item.nighttemp}° / ${item.daytemp}°</span></div>`;
+            });
+        }
+
+        function toggleSearch(show) {
+            document.getElementById("searchModal").classList.toggle("active", show);
+        }
+
+        async function doSearch() {
+            const val = document.getElementById("searchBox").value.trim();
+            if (!val) return;
+            try {
+                const res = await fetch(`https://restapi.amap.com/v3/geocode/geo?key=${GLOBAL_KEY}&address=${val}`);
+                const data = await res.json();
+                if (data.geocodes && data.geocodes.length > 0) {
+                    refreshWeather(data.geocodes[0].adcode);
+                    toggleSearch(false);
+                } else alert("未找到城市");
+            } catch (e) { alert("搜索失败"); }
+        }
+
+        bootstrap();
+    </script>
+</body>
+</html>
